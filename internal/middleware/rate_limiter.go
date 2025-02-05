@@ -26,20 +26,21 @@ func RateLimiter(rdb *redis.Client) gin.HandlerFunc {
 		}
 
 		// Get the rate limit and block duration from environment variables
-		rateLimit, _ := strconv.Atoi(os.Getenv("RATE_LIMIT"))
-		blockDuration, _ := strconv.Atoi(os.Getenv("BLOCK_DURATION"))
-
-		// Increment the request count for the key
-		count, err := rdb.Incr(ctx, key).Result()
+		rateLimit, err := strconv.Atoi(os.Getenv("RATE_LIMIT"))
 		if err != nil {
+			rateLimit = 100 // default rate limit
+		}
+		blockDuration, err := strconv.Atoi(os.Getenv("BLOCK_DURATION"))
+		if err != nil {
+			blockDuration = 60 // default block duration in seconds
+		}
+
+		// Check the request count
+		count, err := rdb.Get(ctx, key).Int64()
+		if err != nil && err != redis.Nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			c.Abort()
 			return
-		}
-
-		// Set the expiration for the key if it's the first request
-		if count == 1 {
-			rdb.Expire(ctx, key, time.Second)
 		}
 
 		// Check if the request count exceeds the rate limit

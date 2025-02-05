@@ -10,6 +10,8 @@ services:
       - REDIS_PASSWORD=
       - RATE_LIMIT=5
       - BLOCK_DURATION=60
+    env_file:
+      - cmd/.env
     depends_on:
       - redis
 

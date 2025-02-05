@@ -1,4 +1,4 @@
-FROM golang:1.17-alpine
+FROM golang:1.23
 
 WORKDIR /app
 
@@ -6,9 +6,9 @@ COPY go.mod ./
 COPY go.sum ./
 RUN go mod download
 
-COPY . ./
+COPY . .
 
-RUN go build -o /rate-limiter
+RUN go build -o /rate-limiter cmd/main.go
 
 EXPOSE 8080
 
