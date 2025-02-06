@@ -1,37 +1,48 @@
 package main
 
 import (
-	"log"
 	"net/http"
+	"os"
 
 	"rate-limiter/internal/middleware"
-	"rate-limiter/internal/redis"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 )
 
 func main() {
-	// Load environment variables from .env file
+	// Load the .env file
 	err := godotenv.Load("cmd/.env")
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		zap.L().Fatal("Error loading .env file", zap.Error(err))
 	}
 
+	// Initialize logger
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+	zap.ReplaceGlobals(logger)
+
 	// Initialize Redis client
-	redisClient := redis.NewClient()
-
-	// Create a new Gin router
-	router := gin.Default()
-
-	// Apply the rate limiter middleware
-	router.Use(middleware.RateLimiter(redisClient))
-
-	// Define a simple handler for testing
-	router.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Hello, World!"})
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     os.Getenv("REDIS_ADDR"),
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       0,
 	})
 
-	// Start the server on port 8080
+	// Initialize Gin router
+	router := gin.Default()
+	router.Use(middleware.RateLimiter(rdb))
+
+	// Define routes
+	router.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Hello, World!",
+		})
+	})
+
+	// Start the server
+	zap.L().Info("Starting server on :8080")
 	router.Run(":8080")
 }

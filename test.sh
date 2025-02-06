@@ -3,9 +3,9 @@
 URL="http://localhost:8080"
 API_KEY="123"
 
-for i in {1..10}
+for i in {1..7}
 do
 	echo "Request #$i"
-	curl -i -X GET $URL -H "API_KEY: $API_KEY"
+	curl -i -X GET $URL 
 	echo -e "\n"
 done

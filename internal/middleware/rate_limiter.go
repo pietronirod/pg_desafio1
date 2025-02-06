@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
 
@@ -35,18 +36,28 @@ func RateLimiter(rdb *redis.Client) gin.HandlerFunc {
 			blockDuration = 60 // default block duration in seconds
 		}
 
-		// Check the request count
-		count, err := rdb.Get(ctx, key).Int64()
-		if err != nil && err != redis.Nil {
+		// Increment the request count
+		count, err := rdb.Incr(ctx, key).Result()
+		if err != nil {
+			zap.L().Error("Error incrementing request count", zap.String("key", key), zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			c.Abort()
 			return
 		}
 
+		// Set the expiration for the key if it's the first request
+		if count == 1 {
+			rdb.Expire(ctx, key, time.Duration(blockDuration)*time.Second)
+		}
+
+		// Log the current count for debugging
+		zap.L().Info("Request count", zap.String("key", key), zap.Int64("count", count))
+
 		// Check if the request count exceeds the rate limit
 		if count > int64(rateLimit) {
 			// Set the expiration for the key to block duration
 			rdb.Expire(ctx, key, time.Duration(blockDuration)*time.Second)
+			zap.L().Warn("Rate limit exceeded", zap.String("key", key))
 			c.JSON(http.StatusTooManyRequests, gin.H{"error": "you have reached the maximum number of requests or actions allowed within a certain time frame"})
 			c.Abort()
 			return
