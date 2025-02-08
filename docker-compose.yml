@@ -1,26 +1,28 @@
-version: "3.8"
-
 services:
   redis:
-    image: redis:latest
-    container_name: rate-limiter-redis
+    image: redis:7.0
+    container_name: redis_rate_limiter
     restart: always
     ports:
       - "6379:6379"
-    volumes:
-      - redis_data:/data
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
+    networks:
+      - rate_limiter_network
 
-  fluentd:
-    image: fluent/fluentd:v1.14-1
-    container_name: rate-limiter-logs
+  rate-limiter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rate_limiter_app
+    depends_on:
+      - redis
     restart: always
     ports:
-      - "24224:24224"
-      - "24224:24224/udp"
-    volumes:
-      - ./fluentd.conf:/fluentd/etc/fluent.conf
+      - "8080:8080"
+    env_file:
+      - .env
+    networks:
+      - rate_limiter_network
 
-volumes:
-  redis_data:
+networks:
+  rate_limiter_network:
+    driver: bridge

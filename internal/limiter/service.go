@@ -1,7 +1,6 @@
 package limiter
 
 import (
-	"rate-limiter/config"
 	"rate-limiter/internal/storage"
 	"time"
 
@@ -26,7 +25,7 @@ func (rl *RateLimiterService) AllowRequest(ip, token string) RateLimitResult {
 	if token != "" {
 		if blocked, _ := rl.storage.IsBlocked(token); blocked {
 			blockTime, _ := rl.storage.GetBlockDuration(token)
-			config.Logger.Warn("Token bloqueado", zap.String("token", token), zap.Duration("block_time", blockTime))
+			rl.logger.Warn("Token bloqueado", zap.String("token", token), zap.Duration("block_time", blockTime))
 			return RateLimitResult{Allowed: false, BlockTime: blockTime}
 		}
 
@@ -36,7 +35,7 @@ func (rl *RateLimiterService) AllowRequest(ip, token string) RateLimitResult {
 		if requests > limit {
 			blockTime := rl.getBlockDurationForToken(token)
 			rl.storage.BlockKey(token, blockTime)
-			config.Logger.Warn("Token atingiu o limite", zap.String("token", token), zap.Int("requests", requests))
+			rl.logger.Warn("Token atingiu o limite", zap.String("token", token), zap.Int("requests", requests))
 			return RateLimitResult{Allowed: false, BlockTime: blockTime}
 		}
 
@@ -45,7 +44,7 @@ func (rl *RateLimiterService) AllowRequest(ip, token string) RateLimitResult {
 
 	if blocked, _ := rl.storage.IsBlocked(ip); blocked {
 		blockTime, _ := rl.storage.GetBlockDuration(ip)
-		config.Logger.Warn("IP bloqueado", zap.String("ip", ip), zap.Duration("block_time", blockTime))
+		rl.logger.Warn("IP bloqueado", zap.String("ip", ip), zap.Duration("block_time", blockTime))
 		return RateLimitResult{Allowed: false, BlockTime: blockTime}
 	}
 
@@ -55,7 +54,7 @@ func (rl *RateLimiterService) AllowRequest(ip, token string) RateLimitResult {
 	if requests > limit {
 		blockTime := rl.getBlockDurationForIP(ip)
 		rl.storage.BlockKey(ip, blockTime)
-		config.Logger.Warn("IP atingiu o limite", zap.String("ip", ip), zap.Int("requests", requests))
+		rl.logger.Warn("IP atingiu o limite", zap.String("ip", ip), zap.Int("requests", requests))
 		return RateLimitResult{Allowed: false, BlockTime: blockTime}
 	}
 
