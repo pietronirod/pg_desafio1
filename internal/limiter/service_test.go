@@ -11,7 +11,6 @@ import (
 )
 
 func setupTestRateLimiter() *RateLimiterService {
-	config.LoadConfig()
 	config.InitLogger()
 
 	memStorage := storage.NewMemoryStorage()

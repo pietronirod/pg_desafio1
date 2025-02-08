@@ -86,32 +86,35 @@ func TestMiddleware_TokenTakesPriorityOverIP(t *testing.T) {
 	// Criar requisição simulada com Token e IP bloqueado
 	req, _ := http.NewRequest("GET", "/test", nil)
 	req.RemoteAddr = "192.168.1.1:12345"
-	req.Header.Set("API_KEY", "token_priority")
 
-	// Bloquear o IP com 3 requisições
+	// **Bloquear o IP** com 3 requisições
 	for i := 0; i < 3; i++ {
-		w := httptest.NewRecorder()
+		w := httptest.NewRecorder() // Resetando para cada requisição
 		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code, "Esperado 200 OK na requisição %d", i+1)
 	}
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req) // Esta deve ser bloqueada
-	assert.Equal(t, http.StatusTooManyRequests, w.Code)
 
-	// Mas se um Token for enviado, a requisição deve ser permitida
+	// **Fazer a 4ª requisição que deve ser bloqueada**
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusTooManyRequests, w.Code, "Esperado 429 Too Many Requests quando o IP atingir o limite")
+
+	// **Agora testamos se o Token tem prioridade**
 	req2, _ := http.NewRequest("GET", "/test", nil)
 	req2.RemoteAddr = "192.168.1.1:12345"
 	req2.Header.Set("API_KEY", "token_priority")
 
+	// **As próximas 5 requisições com Token devem ser permitidas**
 	for i := 0; i < 5; i++ {
-		w := httptest.NewRecorder()
+		w := httptest.NewRecorder() // Resetando para cada requisição
 		router.ServeHTTP(w, req2)
-		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusOK, w.Code, "Esperado 200 OK para requisição com Token na tentativa %d", i+1)
 	}
 
-	// Agora o Token atinge seu limite
+	// **Agora o Token deve atingir seu limite e ser bloqueado**
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req2)
-	assert.Equal(t, http.StatusTooManyRequests, w.Code)
+	assert.Equal(t, http.StatusTooManyRequests, w.Code, "Esperado 429 Too Many Requests quando o Token atingir o limite")
 }
 
 func TestMiddleware_ResponseBody(t *testing.T) {
