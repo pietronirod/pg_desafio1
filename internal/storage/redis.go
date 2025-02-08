@@ -25,6 +25,14 @@ func NewRedisStorage(redisAddr, redisPassword string, redisDB int) *RedisRateLim
 	}
 }
 
+func (r *RedisRateLimiterStorage) Ping() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err := r.client.Ping(ctx).Result()
+	return err
+}
+
 func (r *RedisRateLimiterStorage) IncrementRequest(key string) (int, error) {
 	count, err := r.client.Incr(r.ctx, key).Result()
 	if err != nil {

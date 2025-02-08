@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"rate-limiter/config"
 	"rate-limiter/internal/limiter"
 	"rate-limiter/internal/storage"
@@ -16,9 +17,17 @@ func main() {
 
 	var rateLimiterStorage storage.RateLimiterStorage
 	if config.Cfg.RedisAddr != "" {
-		rateLimiterStorage = storage.NewRedisStorage(config.Cfg.RedisAddr, config.Cfg.RedisPassword, config.Cfg.RedisDB)
+		redisStorage := storage.NewRedisStorage(config.Cfg.RedisAddr, config.Cfg.RedisPassword, config.Cfg.RedisDB)
+
+		if err := redisStorage.Ping(); err != nil {
+			config.Logger.Fatal("Erro ao conectar ao Redis", zap.Error(err))
+			log.Fatalf("Erro ao conectar ao Redis: %v", err)
+		}
+
+		rateLimiterStorage = redisStorage
 	} else {
 		rateLimiterStorage = storage.NewMemoryStorage()
+		config.Logger.Warn("Usando armazenamento em memória (Redis não configurado)")
 	}
 
 	rateLimiterService := limiter.NewRateLimiterService(rateLimiterStorage, limiter.RateLimiterConfig{
